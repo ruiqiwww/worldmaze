@@ -20,7 +20,9 @@ public class Tileset {
     public static final TETile AVATAR = new TETile('@', Color.white, Color.black, "you");
     public static final TETile F_AVATAR = new TETile('❀', Color.magenta, Color.black, "you");
     public static final TETile W_AVATAR = new TETile('≈', new Color(128, 192, 216), Color.blue, "you");
-    public static final TETile L_AVATAR = new TETile('⚡', Color.yellow, Color.black, "you");
+    public static final TETile L_AVATAR = new TETile('♠', Color.green, Color.black, "you");
+
+    public static final TETile LIGHT = new TETile('⚡', Color.yellow, Color.black, "light");
     public static final TETile C_AVATAR = new TETile('你', Color.white, Color.black, "you");
     public static final TETile WALL = new TETile('#', new Color(216, 128, 128), Color.darkGray,
             "wall");
@@ -34,7 +36,9 @@ public class Tileset {
     public static final TETile LOCKED_DOOR = new TETile('█', Color.orange, Color.black,
             "locked door");
     public static final TETile UNLOCKED_DOOR = new TETile('▢', Color.orange, Color.black,
-            "unlocked door");
+            "Escape from the maze!");
+    public static final TETile KEY = new TETile('♀', Color.orange, Color.black,
+            "key to unlock the door");
     public static final TETile SAND = new TETile('▒', Color.yellow, Color.black, "sand");
     public static final TETile MOUNTAIN = new TETile('▲', Color.gray, Color.black, "mountain");
     public static final TETile TREE = new TETile('♠', Color.green, Color.black, "tree");

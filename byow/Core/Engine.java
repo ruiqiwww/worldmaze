@@ -10,6 +10,7 @@ import edu.princeton.cs.algs4.Out;
 import java.awt.*;
 import java.util.ArrayList;
 import java.util.Random;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 public class Engine {
@@ -37,8 +38,11 @@ public class Engine {
     private static final int MAXROOMCONNECTION = 2;
     private static final int BORDERPROTECT = 2;
 
+    private static final int NUM_LIGHTS = 5;
+
     // default tile sets
     private static final TETile OBSTACLE = Tileset.WALL;
+
     private static final TETile INTERIOR = Tileset.FLOOR;
     private static final TETile OUTERWILDS = Tileset.NOTHING;
     private static final TETile PLAYERDEFAULT = Tileset.AVATAR;
@@ -71,7 +75,12 @@ public class Engine {
             Tileset.AVATAR, Tileset.F_AVATAR, Tileset.W_AVATAR, Tileset.L_AVATAR, Tileset.C_AVATAR};
     private static final String SEED_INSTR = "Please enter a seed of numbers (end with 'S')";
 
-    private static final String LIGHT_INSTR = "Press (B) for light switch";
+    private static final String[] ESCAPE = {"Where's the way out? ", "need to find the key to unlock the door! ",
+    "Got the key to unlock the door! ", "Press (U) to unlock the door! ", "Escape through the door! "};
+
+    private static final String[] LIGHT_INSTRS = {"Too dark! Go find a flashlight!", "Press (B) for light switch"};
+
+    private static final String END = "CONGRATULATIONS!!! YOU WIN!!!";
 
     private static final String SAVEFILENAME = "./byow/Core/save.txt";
 
@@ -99,6 +108,8 @@ public class Engine {
     private TETile player = Tileset.AVATAR;
     private PosVector playerPos = new PosVector();
 
+    private PosVector doorPos = new PosVector();
+
 
     private String inputString = "";
     private int currentInputIndex = 0;
@@ -108,8 +119,16 @@ public class Engine {
     private boolean stateSeed = false;
     private boolean stateAppear = false;
     private boolean stateGame = false;
-
     private boolean stateDark = true;
+
+    private boolean hasKey = false;
+    private boolean seenDoor = false;
+
+    private boolean flashlight = false;
+
+    private boolean unlocked = false;
+
+    private boolean gameEnd = false;
 
 
     public Engine() {
@@ -185,7 +204,7 @@ public class Engine {
     }
 
     private void parseInput() {
-        //TODO: add a primary feature?
+
         char currentChar = inputString.charAt(currentInputIndex);
 
         if (currentChar == 'q' && currentInputIndex > 0 && inputString.charAt(currentInputIndex - 1) == ':') {
@@ -203,8 +222,15 @@ public class Engine {
                 movePlayer(commonVectors.cardinal4[commonVectors.movements.indexOf(currentChar)]);
             }
 
-            if (currentChar == 'b') {
+            if (flashlight && currentChar == 'b') {
                 stateDark = !stateDark;
+            }
+
+            if (currentChar == 'u') {
+                if (hasKey && nearDoor(playerPos)) {
+                    world[doorPos.xPos][doorPos.yPos] = Tileset.UNLOCKED_DOOR;
+                    unlocked = true;
+                }
             }
         }
 
@@ -280,6 +306,8 @@ public class Engine {
                 stateAppear = false;
             }
         }
+
+
 
         currentInputIndex++;
     }
@@ -364,9 +392,16 @@ public class Engine {
         StdDraw.show();
     }
 
+    private void drawEnd() {
+        StdDraw.setPenColor(Color.WHITE);
+        StdDraw.setFont(TITLE);
+        StdDraw.text(WIDTH / 2, HEIGHT / 2, END);
+        StdDraw.show();
+    }
+
     private void HUD() {
-        int currX = (int)StdDraw.mouseX();
-        int currY = (int)StdDraw.mouseY();
+        int currX = (int) StdDraw.mouseX();
+        int currY = (int) StdDraw.mouseY();
 
         TETile[][] worldDisplaying;
 
@@ -377,8 +412,26 @@ public class Engine {
         }
         ter.setFrame(worldDisplaying);
         StdDraw.setPenColor(Color.WHITE);
-        StdDraw.text(WIDTH / 2, HEIGHT, LIGHT_INSTR);
-        StdDraw.textRight(WIDTH - 1, HEIGHT, "Seed: " + seed);
+        if (unlocked) {
+            StdDraw.text(WIDTH / 2, HEIGHT, ESCAPE[4]);
+        } else if(!seenDoor && !hasKey) {
+            StdDraw.text(WIDTH / 2, HEIGHT, ESCAPE[0]);
+        } else if(seenDoor && !hasKey) {
+            StdDraw.text(WIDTH / 2, HEIGHT, ESCAPE[1]);
+        } else if(hasKey && nearDoor(playerPos)) {
+            StdDraw.text(WIDTH / 2, HEIGHT, ESCAPE[3]);
+        } else if(hasKey && !nearDoor(playerPos)) {
+            StdDraw.text(WIDTH / 2, HEIGHT, ESCAPE[2]);
+        }
+
+        if(!flashlight) {
+            StdDraw.textRight(WIDTH - 1, HEIGHT, LIGHT_INSTRS[0]);
+        } else if (stateDark) {
+            StdDraw.textRight(WIDTH - 1, HEIGHT, LIGHT_INSTRS[1]);
+        }
+
+
+
         if (currY < HEIGHT && currX < WIDTH) {
             TETile currTile = worldDisplaying[currX][currY];
             StdDraw.setPenColor(Color.WHITE);
@@ -547,8 +600,52 @@ public class Engine {
             }
         }
 
+        //generate a locked door
+        boolean validDoor = false;
+        while(!validDoor) {
+            boolean horizon = RandomUtils.bernoulli(rand);
+            if (horizon) {
+                doorPos = randomRoom().horizonDoor();
+                if (world[doorPos.xPos][doorPos.yPos] == OBSTACLE &&
+                        world[doorPos.xPos][doorPos.yPos + 1] != OBSTACLE &&
+                        world[doorPos.xPos][doorPos.yPos - 1] != OBSTACLE &&
+                        world[doorPos.xPos][doorPos.yPos + 1] != world[doorPos.xPos][doorPos.yPos - 1]) {
+                    validDoor = true;
+                    break;
+                }
+            } else {
+                doorPos = randomRoom().verticalDoor();
+                if (world[doorPos.xPos][doorPos.yPos] == OBSTACLE &&
+                        world[doorPos.xPos + 1][doorPos.yPos] != OBSTACLE &&
+                        world[doorPos.xPos - 1][doorPos.yPos] != OBSTACLE &&
+                        world[doorPos.xPos + 1][doorPos.yPos] != world[doorPos.xPos - 1][doorPos.yPos]) {
+                    validDoor = true;
+                    break;
+                }
+            }
+        }
+
+        world[doorPos.xPos][doorPos.yPos] = Tileset.LOCKED_DOOR;
+
+        //make player
         playerPos = randomRoom().randomPoint();
         drawPlayer();
+
+        //make key
+        PosVector keyPos = randomRoom().randomPoint();
+        while (keyPos == playerPos) {
+            keyPos = randomRoom().randomPoint();
+        }
+        world[keyPos.xPos][keyPos.yPos] = Tileset.KEY;
+
+        //make flashlights
+        for (int i = 0; i < NUM_LIGHTS; i++) {
+            PosVector lightPos = randomRoom().randomPoint();
+            if (lightPos != playerPos && lightPos != keyPos) {
+                world[lightPos.xPos][lightPos.yPos] = Tileset.LIGHT;
+            }
+        }
+
         return world;
     }
 
@@ -572,10 +669,71 @@ public class Engine {
     private void movePlayer(PosVector direction) {
         world[playerPos.xPos][playerPos.yPos] = INTERIOR;
         playerPos = playerPos.sum(direction);
-        if (world[playerPos.xPos][playerPos.yPos] == OBSTACLE) {
+
+        if (world[playerPos.xPos][playerPos.yPos] == Tileset.UNLOCKED_DOOR) {
+            world[playerPos.xPos][playerPos.yPos] = player;
+            gameEnd = true;
+            stateMenu = false;
+            stateSeed = false;
+            stateGame = false;
+            stateAppear = false;
+
+            render();
+
+            try {
+                Thread.sleep(500);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+
+
+            StdDraw.clear(new Color(0, 0, 0));
+
+
+            drawEnd();
+            try {
+                Thread.sleep(2500);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+
+
+
+            System.exit(0);
+
+        }
+
+        if (world[playerPos.xPos][playerPos.yPos] == OBSTACLE ) {
             playerPos = playerPos.subtract(direction);
         }
+
+        if (world[playerPos.xPos][playerPos.yPos] == Tileset.LOCKED_DOOR) {
+            if(!seenDoor) {
+                seenDoor = true;
+            }
+            playerPos = playerPos.subtract(direction);
+        }
+
+        if (world[playerPos.xPos][playerPos.yPos] == Tileset.KEY) {
+            hasKey = true;
+        }
+
+        if (world[playerPos.xPos][playerPos.yPos] == Tileset.LIGHT) {
+            flashlight = true;
+        }
+
+
         world[playerPos.xPos][playerPos.yPos] = player;
+    }
+
+    private boolean nearDoor(PosVector pos) {
+        for (PosVector d: commonVectors.cardinal4) {
+            PosVector tmp = pos.sum(d);
+            if (world[tmp.xPos][tmp.yPos] == Tileset.LOCKED_DOOR) {
+                return true;
+            }
+        }
+        return false;
     }
     
     private void drawHallway(Room room1, Room room2) {
@@ -715,6 +873,16 @@ public class Engine {
         public PosVector randomPoint() {
             return new PosVector(RandomUtils.uniform(rand, xPos, xPos + width),
                     RandomUtils.uniform(rand, yPos, yPos + height));
+        }
+
+        public PosVector horizonDoor() {
+            int far = RandomUtils.uniform(rand, 0, 2);
+            return new PosVector(RandomUtils.uniform(rand, xPos, xPos + width), yPos - 1 + far * (height + 2));
+        }
+
+        public PosVector verticalDoor() {
+            int far = RandomUtils.uniform(rand, 0, 2);
+            return new PosVector(xPos - 1 + far * (width + 2), RandomUtils.uniform(rand, yPos, yPos + height));
         }
 
         public boolean contains(PosVector vec) {
