@@ -68,7 +68,7 @@ public class Engine {
     private static int currAppear = 0;
     private static ArrayList<Character> APPEAR_CHARS = new ArrayList<>();
     private static final String[] APPEAR_OPTIONS = {
-            "Default (D)", "Flower (F)", "Wave (W)", "Lightning (L)", "Chinese (C)", "Back to Main Menu (M)"};
+            "Default (D)", "Flower (F)", "Wave (W)", "Leaf (L)", "Chinese (C)", "Back to Main Menu (M)"};
     private static final String[] CHARACTER_DESCRIPTION = {
             "Brave", "Warrior", "Maze Explorer", "Parkourer"};
     private static final TETile[] APPEARANCES = {
